@@ -15,5 +15,5 @@ public interface PriceService {
 
     List<Prices> priceParameters(LocalDateTime date, Long productId, Long brandId);
 
-    boolean deletePrices (Long id);
+    void deletePrices (Long id);
 }

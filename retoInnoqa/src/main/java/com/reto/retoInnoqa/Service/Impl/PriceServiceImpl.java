@@ -1,6 +1,9 @@
 package com.reto.retoInnoqa.Service.Impl;
 
 import com.reto.retoInnoqa.Entity.Prices;
+import com.reto.retoInnoqa.Exception.PriceListException;
+import com.reto.retoInnoqa.Exception.PriceNotFoundException;
+import com.reto.retoInnoqa.Exception.PriceSaveExcepcion;
 import com.reto.retoInnoqa.Repository.PriceRepository;
 import com.reto.retoInnoqa.Service.PriceService;
 import com.reto.retoInnoqa.Util.Validation;
@@ -28,14 +31,17 @@ public class PriceServiceImpl implements PriceService {
             return priceRepository.save(prices);
         }catch (DataAccessException e){
             logger.error("Error connection H2" + e.getMessage());
-            throw e;
+            throw new PriceSaveExcepcion("Error saving price to the database");
         }
     }
 
     @Override
     public List<Prices> listPrices() {
-        return Optional.ofNullable(priceRepository.findAll()).orElseThrow(
-                ()-> new ResponseStatusException(HttpStatus.NOT_FOUND, "Prices not found"));
+        List<Prices> prices = priceRepository.findAll();
+        if (prices.isEmpty()) {
+            throw new PriceListException("Prices not found");
+        }
+        return prices;
     }
 
     @Override
@@ -50,7 +56,7 @@ public class PriceServiceImpl implements PriceService {
             existingPrice.setPrice(prices.getPrice());
             existingPrice.setCurr(prices.getCurr());
             return priceRepository.save(existingPrice);
-        }).orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND,"Price not found"));
+        }).orElseThrow(()-> new PriceNotFoundException("Price not found with id: " + id));
     }
 
     @Override
@@ -58,7 +64,7 @@ public class PriceServiceImpl implements PriceService {
         List<Prices> prices = priceRepository.findByBrandIdAndStartDateLessThanEqualAndEndDateGreaterThanEqualAndProductId(brandId, date, date, productId);
 
         if(prices.isEmpty()){
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No prices found for the provided parameters");
+            throw new PriceNotFoundException( "No prices found for the provided parameters");
         }
         Prices selectedPrice = prices.stream()
                 .max(Comparator.comparingInt(Prices::getPriority))
@@ -69,14 +75,11 @@ public class PriceServiceImpl implements PriceService {
     }
 
     @Override
-    public boolean deletePrices(Long id) {
-        Optional<Prices> optionalPrice = priceRepository.findById(id);
-        if (optionalPrice.isPresent()) {
-            priceRepository.deleteById(id);
-            return true;
-        } else {
-            return false;
+    public void deletePrices(Long id) {
+        if (!priceRepository.existsById(id)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Price not found");
         }
+        priceRepository.deleteById(id);
     }
 
 }
